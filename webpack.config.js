@@ -1,38 +1,31 @@
 const webpack = require('webpack');
 const path = require('path');
 
-function FileListPlugin(options) {}
+function DependencyGraphPlugin(options) {}
 
-FileListPlugin.prototype.apply = function(compiler) {
+DependencyGraphPlugin.prototype.apply = function(compiler) {
+  const lines = [
+    'digraph G {'
+  ];
   compiler.plugin('after-compile', function(compilation, callback) {
     compilation.modules.forEach((m) => {
-      console.log('---------')
-      console.log(m.rawRequest);
-      console.log(m.dependencies.filter(d => d.module !== null).map((d) => d.module.rawRequest));
-      console.log('---------')
-    })
+      m.dependencies.filter(d => d.module !== null).forEach((d) => {
+        lines.push(`"${m.rawRequest}" -> "${d.module.rawRequest}"`);
+      });
+    });
+    lines.push("}");
     callback();
-  })
+  });
   compiler.plugin('emit', function(compilation, callback) {
-    // Create a header string for the generated file:
-    var filelist = 'In this build:\n\n';
-
-    // Loop through all compiled assets,
-    // adding a new line item for each filename.
-    for (var filename in compilation.assets) {
-      filelist += ('- '+ filename +'\n');
-    }
-
-    // Insert this list into the webpack build as a new file asset:
-    compilation.assets['filelist.md'] = {
+    const contents = lines.join('\n');
+    compilation.assets['deps-graph.dot'] = {
       source: function() {
-        return filelist;
+        return contents;
       },
       size: function() {
-        return filelist.length;
+        return contents.length;
       }
     };
-
     callback();
   });
 };
@@ -47,6 +40,6 @@ module.exports = {
     filename: '[name].bundle.js',
   },
   plugins: [
-    new FileListPlugin(),
+    new DependencyGraphPlugin(),
   ]
 };
