@@ -1,16 +1,19 @@
 const webpack = require('webpack');
 const path = require('path');
+const exec = require('child_process').exec;
 
-function DependencyGraphPlugin(options) {}
+function DependencyGraphPlugin(options) {
+  this.options = options;
+}
 
 DependencyGraphPlugin.prototype.apply = function(compiler) {
-  const lines = [
-    'digraph G {'
-  ];
+  const plugin = this;
+  const lines = [];
   compiler.plugin('after-compile', function(compilation, callback) {
+    lines.push('digraph G {');
     compilation.modules.forEach((m) => {
       m.dependencies.filter(d => d.module !== null).forEach((d) => {
-        lines.push(`"${m.rawRequest}" -> "${d.module.rawRequest}"`);
+        lines.push(`"${m.rawRequest}" -> "${d.module.rawRequest}";`);
       });
     });
     lines.push("}");
@@ -18,7 +21,8 @@ DependencyGraphPlugin.prototype.apply = function(compiler) {
   });
   compiler.plugin('emit', function(compilation, callback) {
     const contents = lines.join('\n');
-    compilation.assets['deps-graph.dot'] = {
+    lines.splice(0);
+    compilation.assets[plugin.options.output || 'deps-graph.dot'] = {
       source: function() {
         return contents;
       },
@@ -27,6 +31,16 @@ DependencyGraphPlugin.prototype.apply = function(compiler) {
       }
     };
     callback();
+  });
+  compiler.plugin('after-emit', function(compilation, callback) {
+    if (plugin.options.postBuildCommand) {
+      exec(plugin.options.postBuildCommand, { cwd: this.options.output.path }, (err) => {
+        if (err) {
+          console.error(err);
+        }
+        callback();
+      });
+    }
   });
 };
 
@@ -40,6 +54,9 @@ module.exports = {
     filename: '[name].bundle.js',
   },
   plugins: [
-    new DependencyGraphPlugin(),
+    new DependencyGraphPlugin({
+      output: "deps-graph.dot",
+      postBuildCommand: "dot -Tpdf < deps-graph.dot > deps-graph.pdf"
+    }),
   ]
 };

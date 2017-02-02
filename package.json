@@ -5,8 +5,8 @@
   "repository": {},
   "license": "MIT",
   "scripts": {
-    "start": "webpack --optimize-minimize",
-    "graphviz": "dot -Tpdf < dist/deps-graph.dot > deps-graph.pdf"
+    "build": "webpack --optimize-minimize",
+    "build:watch": "webpack --colors --progress --watch"
   },
   "dependencies": {
     "webpack": "^2.2.1"
